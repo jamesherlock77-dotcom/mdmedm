@@ -147,7 +147,11 @@ async def get_current_versions() -> tuple[Optional[str], Optional[str]]:
     meta = await fetch_store_metadata()
     if not isinstance(meta, dict):
         return None, None
-    return _extract_live_version(meta), _extract_dev_version(meta)
+    live = _extract_live_version(meta)
+    dev = _extract_dev_version(meta)
+    if live is None and dev is None:
+        print(f"Both extractions returned None. Raw response was:\n{json.dumps(meta, indent=2)[:3000]}")
+    return live, dev
 
 
 # --------------------------- Discord state I/O ----------------------------
