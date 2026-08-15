@@ -82,31 +82,45 @@ class GraphQLClient:
 
         self._timestamps.append(asyncio.get_running_loop().time())
 
-    async def post(self, payload: dict) -> Optional[dict]:
-        await self._acquire_slot()
+    async def post(self, payload: dict, retries: int = 3, base_delay: float = 2.0) -> Optional[dict]:
+        for attempt in range(retries):
+            await self._acquire_slot()
 
-        if self._session is None or self._session.closed:
-            self._session = aiohttp.ClientSession(timeout=self._timeout)
+            if self._session is None or self._session.closed:
+                self._session = aiohttp.ClientSession(timeout=self._timeout)
 
-        try:
-            headers = {"TE": "Trailers"}
-            async with self._session.post(self.url, data=payload, headers=headers) as resp:
-                body_text = await resp.text()
-                if resp.status >= 400:
-                    print(f"GraphQL HTTP {resp.status} — response body:\n{body_text[:2000]}")
-                    return None
-                try:
-                    return json.loads(body_text)
-                except json.JSONDecodeError:
-                    print(f"GraphQL response was not valid JSON:\n{body_text[:2000]}")
-                    return None
-        except Exception as e:
-            print(f"GraphQL error: {type(e).__name__}: {e}")
+            try:
+                headers = {"TE": "Trailers"}
+                async with self._session.post(self.url, data=payload, headers=headers) as resp:
+                    body_text = await resp.text()
+                    if resp.status >= 400:
+                        print(f"GraphQL HTTP {resp.status} (attempt {attempt + 1}/{retries}) — response body:\n{body_text[:2000]}")
+                    else:
+                        try:
+                            data = json.loads(body_text)
+                        except json.JSONDecodeError:
+                            print(f"GraphQL response was not valid JSON (attempt {attempt + 1}/{retries}):\n{body_text[:2000]}")
+                            data = None
 
-            if self._session and not self._session.closed:
-                await self._session.close()
-            self._session = None
-            return None
+                        if data is not None:
+                            # A well-formed response with a top-level "error" key is Meta's
+                            # own error envelope (e.g. OAuthException) even on some 200s,
+                            # so treat that as a failure worth retrying too.
+                            if isinstance(data, dict) and "error" in data and "data" not in data:
+                                print(f"GraphQL error envelope (attempt {attempt + 1}/{retries}): {data['error']}")
+                            else:
+                                return data
+            except Exception as e:
+                print(f"GraphQL error (attempt {attempt + 1}/{retries}): {type(e).__name__}: {e}")
+
+                if self._session and not self._session.closed:
+                    await self._session.close()
+                self._session = None
+
+            if attempt < retries - 1:
+                await asyncio.sleep(base_delay * (attempt + 1))
+
+        return None
 
     async def close(self) -> None:
         if self._session and not self._session.closed:
