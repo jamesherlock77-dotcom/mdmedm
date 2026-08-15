@@ -130,17 +130,22 @@ async def fetch_store_metadata() -> Optional[dict]:
 
 
 def _extract_live_version(meta: dict) -> Optional[str]:
-    nodes = meta.get("data", {}).get("node", {}).get("liveChannel", {}).get("nodes", [])
-    if not nodes:
-        return None
-    return nodes[0].get("latest_supported_binary", {}).get("version")
+    nodes = meta.get("data", {}).get("node", {}).get("release_channels", {}).get("nodes", [])
+    for node in nodes:
+        if node.get("channel_name") == "LIVE":
+            return node.get("latest_supported_binary", {}).get("version")
+    return None
 
 
 def _extract_dev_version(meta: dict) -> Optional[str]:
-    nodes = meta.get("data", {}).get("node", {}).get("primary_binaries", {}).get("nodes", [])
-    if not nodes:
-        return None
-    return nodes[0].get("version")
+    nodes = meta.get("data", {}).get("node", {}).get("release_channels", {}).get("nodes", [])
+    for node in nodes:
+        # Meta doesn't always label the pre-release channel identically across apps;
+        # common names include ALPHA, BETA, RC, DEV_LOCK, etc. Grab the first
+        # non-LIVE channel found as a best-effort "dev" version.
+        if node.get("channel_name") and node.get("channel_name") != "LIVE":
+            return node.get("latest_supported_binary", {}).get("version")
+    return None
 
 
 async def get_current_versions() -> tuple[Optional[str], Optional[str]]:
