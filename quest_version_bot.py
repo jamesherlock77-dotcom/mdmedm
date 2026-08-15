@@ -48,7 +48,7 @@ STORAGE_CHANNEL_ID = int(os.environ.get("STORAGE_CHANNEL_ID", "0"))
 # Oculus GraphQL access — same as the original script.
 OCULUS_ACCESS_TOKEN = os.environ.get("OCULUS_ACCESS_TOKEN", "OC|752908224809889|")
 OCULUS_APP_ID = int(os.environ.get("OCULUS_APP_ID", "7190422614401072"))
-OCULUS_DOC_ID = int(os.environ.get("OCULUS_DOC_ID", "6771539532935162"))
+OCULUS_DOC_ID = int(os.environ.get("OCULUS_DOC_ID", "3828663700542720"))
 
 STATE_MARKER = "QUEST_VERSION_BOT_STATE"  # tag so we can find our own JSON msgs
 
