@@ -89,7 +89,8 @@ class GraphQLClient:
             self._session = aiohttp.ClientSession(timeout=self._timeout)
 
         try:
-            async with self._session.post(self.url, data=payload) as resp:
+            headers = {"TE": "Trailers"}
+            async with self._session.post(self.url, data=payload, headers=headers) as resp:
                 body_text = await resp.text()
                 if resp.status >= 400:
                     print(f"GraphQL HTTP {resp.status} — response body:\n{body_text[:2000]}")
